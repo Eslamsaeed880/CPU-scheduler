@@ -5,9 +5,10 @@ public class Process {
     private String name;
     private int arrivalTime;
     private int burstTime;
-    private int remainingTime;
     private int priority;
     private int quantum;
+    private int waitingTime;
+    private int turnaroundTime;
 
     List<Integer> quantumHistory = new ArrayList<>();
 
@@ -20,16 +21,24 @@ public class Process {
         quantumHistory.add(arrivalTime);
     }
 
+    public int getTurnaroundTime() {
+        return turnaroundTime;
+    }
+
+    public void setTurnaroundTime(int turnaroundTime) {
+        this.turnaroundTime = turnaroundTime;
+    }
+
     public void addQuantum(int quantum) {
         this.quantumHistory.add(quantum);
     }
 
-    public int getRemainingTime() {
-        return remainingTime;
+    public int getWaitingTime() {
+        return waitingTime;
     }
 
-    public void setRemainingTime(int remainingTime) {
-        this.remainingTime = remainingTime;
+    public void setWaitingTime(int waitingTime) {
+        this.waitingTime = waitingTime;
     }
 
     public String getName() {
@@ -62,5 +71,10 @@ public class Process {
 
     public void setPriority(int priority) {
         this.priority = priority;
+    }
+
+    @Override
+    public String toString() {
+        return getName();
     }
 }
