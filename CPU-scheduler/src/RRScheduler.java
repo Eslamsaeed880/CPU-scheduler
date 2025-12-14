@@ -1,7 +1,8 @@
+import java.util.ArrayList;
 import java.util.List;
 
 public class RRScheduler implements IScheduler {
-    public Result schedule(List<Process> processes) {
-        return null;
+    public void schedule(ArrayList<Process> processes) {
+        return ;
     }
 }

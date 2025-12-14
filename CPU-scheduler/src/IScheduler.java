@@ -1,5 +1,6 @@
+import java.util.ArrayList;
 import java.util.List;
 
 public interface IScheduler {
-    Result schedule(List<Process> processes);
+    void schedule(ArrayList<Process> processes);
 }
