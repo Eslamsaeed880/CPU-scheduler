@@ -6,10 +6,13 @@ public class Main {
         while (true) {
             System.out.println("\nCPU Scheduler Menu:");
             System.out.println("1. Run Shortest Job First (SJF)");
+            System.out.println("2. Run Priority Scheduler");
             System.out.println("0. Exit");
             System.out.print("Enter your choice: ");
+
             int choice = scanner.nextInt();
             scanner.nextLine();
+
             if (choice == 0) {
                 System.out.println("Exiting...");
                 break;
@@ -36,7 +39,18 @@ public class Main {
                 }
                 SJFScheduler sjf = new SJFScheduler();
                 sjf.schedule(processes);
-            } else {
+
+            }else if(choice == 2) {
+                ArrayList<Process> processes = new ArrayList<>();
+                processes.add(new Process("P1", 8, 0, 3, 2));
+                processes.add(new Process("P2", 4, 1, 1, 2));
+                processes.add(new Process("P3", 2, 2, 4, 2));
+                processes.add(new Process("P4", 1, 3, 2, 2));
+                processes.add(new Process("P5", 3, 4, 5, 2));
+
+                PriorityScheduler ps = new PriorityScheduler();
+                ps.schedule(processes);
+            }else {
                 System.out.println("Invalid choice. Try again.");
             }
         }
