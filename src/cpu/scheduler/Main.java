@@ -9,7 +9,7 @@ import org.json.*;
 public class Main {
     public static void main(String[] testFiles) {
         Map<String, IScheduler> schedulers = new HashMap<>();
-        // schedulers.put("SJF", new ShortestJobFirst());
+        schedulers.put("SJF", new ShortestJobFirst());
         schedulers.put("RR", new RoundRobin());
         // schedulers.put("Priority", new Priority());
         int failedTests = 0;
@@ -48,7 +48,7 @@ public class Main {
             runner.setContextSwitchTime(contextSwitch);
             JSONObject testOutput = test.getJSONObject("expectedOutput");
             int algorithmNumber = 0;
-            boolean anyAlgorithmFailed = true;
+            boolean anyAlgorithmFailed = false;
             for (String algorithm : testOutput.keySet()) {
                 System.out.print(++algorithmNumber + ". " + algorithm);
                 if (!schedulers.containsKey(algorithm)) {
