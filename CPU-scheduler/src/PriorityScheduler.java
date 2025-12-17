@@ -8,8 +8,6 @@ public class PriorityScheduler implements IScheduler {
     @Override
     public void schedule(ArrayList<Process> processes) {
 
-        Process lastRunning = null;
-
         processes.sort(Comparator.comparingInt(Process::getArrivalTime));
 
         PriorityQueue<Process> readyQueue = new PriorityQueue<>(
@@ -63,8 +61,7 @@ public class PriorityScheduler implements IScheduler {
             if (!readyQueue.isEmpty()) {
                 Process next = readyQueue.poll();
 
-                // ADD CONTEXT SWITCH IF CPU CHANGES PROCESS
-                if (lastRunning != null && !lastRunning.getName().equals(next.getName())) {
+                if (previous != null && !previous.getName().equals(next.getName())) {
                     time += CONTEXT_SWITCH_TIME;
                 }
 
@@ -74,9 +71,7 @@ public class PriorityScheduler implements IScheduler {
                 }
 
                 current = next;
-                lastRunning = next;
             }
-
 
             // Execute 1 time unit
             if (current != null) {

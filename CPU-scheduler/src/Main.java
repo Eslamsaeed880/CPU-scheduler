@@ -42,10 +42,10 @@ public class Main {
 
             }else if(choice == 2) {
                 ArrayList<Process> processes = new ArrayList<>();
-                processes.add(new Process("P1", 8, 0, 3, 2));
-                processes.add(new Process("P2", 4, 1, 1, 2));
-                processes.add(new Process("P3", 2, 2, 4, 2));
-                processes.add(new Process("P4", 1, 3, 2, 2));
+                processes.add(new Process("P1", 3, 0, 3, 2));
+                processes.add(new Process("P2", 2, 1, 1, 2));
+                processes.add(new Process("P3", 4, 2, 2, 2));
+                processes.add(new Process("P4", 1, 3, 4, 2));
                 processes.add(new Process("P5", 3, 4, 5, 2));
 
                 PriorityScheduler ps = new PriorityScheduler();
