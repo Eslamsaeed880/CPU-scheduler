@@ -17,6 +17,9 @@ public class AG implements IScheduler {
     }
 
     @Override
+    public boolean doContextSwitch() { return false; }
+
+    @Override
     public String /* Process name */ scheduleNext(int time) { // Runs for 1s.
         return "";
     }
