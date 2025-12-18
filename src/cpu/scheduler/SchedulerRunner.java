@@ -32,15 +32,17 @@ public class SchedulerRunner {
                     && time >= process.getValue().getArrivalTime()
                     && !processed.contains(process.getKey())) {
                     inQueueProcesses.put(process.getKey(), new Process(process.getValue()));
-                    scheduler.onNewProcess(process.getKey());
+                    scheduler.onNewProcess(process.getKey(), time);
                 }
             }
-            String nextProcess = scheduler.scheduleNext();
+            String nextProcess = scheduler.scheduleNext(time);
             if (inQueueProcesses.containsKey(nextProcess)) {
                 if (executionOrder.size() > 0) {
                     String lastProcess = executionOrder.get(executionOrder.size()-1);
                     if (lastProcess != nextProcess) {
-                        time += this.contextSwitchTime;
+                        if (scheduler.doContextSwitch()) {
+                            time += this.contextSwitchTime;
+                        }
                         executionOrder.add(nextProcess);
                     }
                 } else {

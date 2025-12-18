@@ -23,7 +23,6 @@ public class Process {
         this.priority = other.priority;
     }
 
-    // Implementers of IScheduler shouldn't call this method
     public int getArrivalTime() {
         return arrivalTime;
     }

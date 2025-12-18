@@ -11,7 +11,7 @@ public class ShortestJobFirst implements IScheduler {
     }
 
     @Override
-    public String /* Process name */ scheduleNext() { // Runs for 1s.
+    public String /* Process name */ scheduleNext(int time) { // Runs for 1s.
         int minBurstTime = Integer.MAX_VALUE;
         String minBurstTimeProcess = null;
 
@@ -23,15 +23,13 @@ public class ShortestJobFirst implements IScheduler {
                 minBurstTime = p.burstTime;
                 minBurstTimeProcess = entry.getKey();
             }
-            else if (p.burstTime == minBurstTime) {
+            else if (p.burstTime == minBurstTime
+                     && p.getArrivalTime() < this.processes.get(minBurstTimeProcess).getArrivalTime()) {
                 // Tie-breaker: Pick the one that arrived earliest (FCFS)
-                if (minBurstTimeProcess == null ||
-                    p.getArrivalTime() < this.processes.get(minBurstTimeProcess).getArrivalTime()) {
-                    minBurstTimeProcess = entry.getKey();
-                }
+                minBurstTimeProcess = entry.getKey();
             }
         }
+
         return minBurstTimeProcess;
     }
 }
-

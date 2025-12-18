@@ -12,7 +12,10 @@ public class Main {
         schedulers.put("SJF", new ShortestJobFirst());
         schedulers.put("RR", new RoundRobin());
         schedulers.put("Priority", new Priority());
-        int failedTests = 0;
+        Map<String, Integer> schedulersFails = new HashMap<>();
+        schedulersFails.put("SJF", 0);
+        schedulersFails.put("RR", 0);
+        schedulersFails.put("Priority", 0);
         for (String fileName : testFiles) {
             String contents;
             try {
@@ -32,7 +35,8 @@ public class Main {
             int rrQuantum = testInput.getInt("rrQuantum");
             int agingInterval = testInput.getInt("agingInterval");
             for (IScheduler scheduler : schedulers.values()) {
-                scheduler.configure(rrQuantum, agingInterval);
+                scheduler.setParameter("rrQuantum", rrQuantum);
+                scheduler.setParameter("agingInterval", agingInterval);
             }
             JSONArray processesArray = testInput.getJSONArray("processes");
             Map<String, Process> processes = new HashMap<>(processesArray.length());
@@ -48,7 +52,6 @@ public class Main {
             runner.setContextSwitchTime(contextSwitch);
             JSONObject testOutput = test.getJSONObject("expectedOutput");
             int algorithmNumber = 0;
-            boolean anyAlgorithmFailed = false;
             for (String algorithm : testOutput.keySet()) {
                 System.out.print(++algorithmNumber + ". " + algorithm);
                 if (!schedulers.containsKey(algorithm)) {
@@ -88,15 +91,20 @@ public class Main {
                 if (!correctAlgorithm) {
                     System.out.println();
                     System.out.println("INCORRECT " + algorithm +  " ALGORITHM IMPLEMENTATION");
-                    anyAlgorithmFailed = true;
+                    schedulersFails.put(algorithm, schedulersFails.get(algorithm) + 1);
                 }
-            }
-            if (anyAlgorithmFailed) {
-                failedTests++;
             }
         }
         System.out.println();
-        System.out.println(failedTests + " tests failed out of " + testFiles.length);
+        for (Map.Entry<String, Integer> fail : schedulersFails.entrySet()) {
+            if (fail.getValue() == testFiles.length) {
+                System.out.println(fail.getKey() + " failed every test cases out of " + testFiles.length);
+            } else if (fail.getValue() > 0) {
+                System.out.println(fail.getKey() + " failed " + fail.getValue() +  " test cases out of " + testFiles.length);
+            } else {
+                System.out.println(fail.getKey() + " passed every test case out of " + testFiles.length);
+            }
+        }
     }
 
     static List<String> toList(JSONArray jsonArray) {
