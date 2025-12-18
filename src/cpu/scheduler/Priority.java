@@ -7,23 +7,24 @@ public class Priority implements IScheduler {
 
     private Map<String, Process> processes;
     private int agingInterval;
+
+    // How long each process has been waiting (in CPU ticks)
     private Map<String, Integer> waitingTime = new HashMap<>();
 
-    // Currently running process
-    private String currentProcess = null;
-
-    private int current_time;
+    // Dynamic priority used by the scheduler
+    // Lower value = higher priority
+    private Map<String, Integer> effectivePriority = new HashMap<>();
 
     @Override
     public void setProcessSet(Map<String, Process> processes) {
         this.processes = processes;
         waitingTime.clear();
-        currentProcess = null;
-        current_time = 0;
+        effectivePriority.clear();
 
-        // Initialize waiting times
-        for (String name : processes.keySet()) {
-            waitingTime.put(name, 0);
+        // Initialize state for all currently available processes
+        for (Map.Entry<String, Process> e : processes.entrySet()) {
+            waitingTime.put(e.getKey(), 0);
+            effectivePriority.put(e.getKey(), e.getValue().getPriority());
         }
     }
 
@@ -33,57 +34,58 @@ public class Priority implements IScheduler {
     }
 
     @Override
+    public void onNewProcess(String name) {
+        // Initialize newly arrived process
+        if (!waitingTime.containsKey(name) && processes.containsKey(name)) {
+            waitingTime.put(name, 0);
+            effectivePriority.put(name, processes.get(name).getPriority());
+        }
+    }
+
+    @Override
     public String scheduleNext() {
 
         if (processes == null || processes.isEmpty()) {
             return null;
         }
 
-        current_time++;
-
-        // 1- Aging: increase waiting time for all processes
-        for (String name : processes.keySet()) {
-            Process p = processes.get(name);
-            if (p.getArrivalTime() > current_time || name.equals(currentProcess)) continue;
-            int wait = waitingTime.computeIfAbsent(name, k -> 0) + 1;
-            waitingTime.put(name, wait);
-            // Apply aging
-            if (agingInterval > 0 && wait % agingInterval == 0) {
-                try {
-                    var field = Process.class.getDeclaredField("priority");
-                    field.setAccessible(true);
-                    int newPriority = Math.max(0, p.getPriority() - 1);
-                    field.setInt(p, newPriority);
-                } catch (NoSuchFieldException | IllegalAccessException e) {
-                    e.printStackTrace(); // or ignore if you prefer
-                }
-            }
-
-        }
-
-        // 2- Select process with highest priority (lowest value)
+        // 1) Select process with best EFFECTIVE priority
         String selected = null;
         int bestPriority = Integer.MAX_VALUE;
-        int earliestArrival = Integer.MAX_VALUE;
 
         for (Map.Entry<String, Process> entry : processes.entrySet()) {
+            String name = entry.getKey();
             Process p = entry.getValue();
-            if (p.getArrivalTime() > current_time) continue;
-            if (p.getPriority() < bestPriority ||
-                    (p.getPriority() == bestPriority && p.getArrivalTime() < earliestArrival)) {
-                bestPriority = p.getPriority();
-                earliestArrival = p.getArrivalTime();
-                selected = entry.getKey();
+            int pr = effectivePriority.get(name);
+
+            if (pr < bestPriority) {
+                bestPriority = pr;
+                selected = name;
             }
         }
 
-        if (selected == null) return null;
+        if (selected == null) {
+            return null;
+        }
 
-        // 4- Update current process and reset its waiting time
-        currentProcess = selected;
-        waitingTime.put(selected, 0);
+        // 2) Aging: everyone except the selected process waited 1 tick
+        for (String name : processes.keySet()) {
+            if (name.equals(selected)) {
+                // Reset waiting info and restore base priority
+                waitingTime.put(name, 0);
+            } else {
+                int wait = waitingTime.getOrDefault(name, 0) + 1;
+                waitingTime.put(name, wait);
+
+                if (agingInterval > 0 && wait % agingInterval == 0) {
+                    effectivePriority.put(
+                            name,
+                            Math.max(0, effectivePriority.get(name) - 1)
+                    );
+                }
+            }
+        }
 
         return selected;
     }
-
 }
