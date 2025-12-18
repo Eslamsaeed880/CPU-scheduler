@@ -48,7 +48,11 @@ public class Priority implements IScheduler {
             if (priority < bestPriority) {
                 bestPriority = priority;
                 selected = entry.getKey();
-            } else if (priority == bestPriority && p.burstTime < this.processes.get(selected).burstTime) {
+            }
+            // else if (priority == bestPriority &&  p.getArrivalTime() < processes.get(selected).getArrivalTime()) {
+            //                selected = entry.getKey();
+            //            }
+            else if (priority == bestPriority && p.burstTime < this.processes.get(selected).burstTime) {
                 selected = entry.getKey();
             }
         }
