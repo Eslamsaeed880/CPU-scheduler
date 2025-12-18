@@ -11,7 +11,7 @@ public class Main {
         Map<String, IScheduler> schedulers = new HashMap<>();
         schedulers.put("SJF", new ShortestJobFirst());
         schedulers.put("RR", new RoundRobin());
-        // schedulers.put("Priority", new Priority());
+        schedulers.put("Priority", new Priority());
         int failedTests = 0;
         for (String fileName : testFiles) {
             String contents;
