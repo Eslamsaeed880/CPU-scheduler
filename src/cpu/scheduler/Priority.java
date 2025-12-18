@@ -12,9 +12,6 @@ public class Priority implements IScheduler {
     // Currently running process
     private String currentProcess = null;
 
-    // Context switch duration
-    private final int CONTEXT_SWITCH = 1;
-
     private int current_time;
 
     @Override
@@ -37,18 +34,19 @@ public class Priority implements IScheduler {
 
     @Override
     public String scheduleNext() {
+
         if (processes == null || processes.isEmpty()) {
             return null;
         }
 
+        current_time++;
+
         // 1- Aging: increase waiting time for all processes
         for (String name : processes.keySet()) {
-            int wait = waitingTime.getOrDefault(name, 0) + 1;
-            waitingTime.put(name, wait);
-
             Process p = processes.get(name);
-            if (p.getArrivalTime() > current_time || name.equals(currentProcess) || p.burstTime <= 0) continue;
-
+            if (p.getArrivalTime() > current_time || name.equals(currentProcess)) continue;
+            int wait = waitingTime.computeIfAbsent(name, k -> 0) + 1;
+            waitingTime.put(name, wait);
             // Apply aging
             if (agingInterval > 0 && wait % agingInterval == 0) {
                 try {
@@ -70,6 +68,7 @@ public class Priority implements IScheduler {
 
         for (Map.Entry<String, Process> entry : processes.entrySet()) {
             Process p = entry.getValue();
+            if (p.getArrivalTime() > current_time) continue;
             if (p.getPriority() < bestPriority ||
                     (p.getPriority() == bestPriority && p.getArrivalTime() < earliestArrival)) {
                 bestPriority = p.getPriority();
@@ -80,22 +79,9 @@ public class Priority implements IScheduler {
 
         if (selected == null) return null;
 
-        // 3- Context switch: add switch time to other waiting processes
-        if (currentProcess != null && !currentProcess.equals(selected)) {
-            // Only add context switch to processes that are waiting
-            for (String name : processes.keySet()) {
-                if (!name.equals(selected) && !name.equals(currentProcess)) {
-                    waitingTime.put(name, waitingTime.get(name) + CONTEXT_SWITCH);
-                }
-            }
-        }
-
-
         // 4- Update current process and reset its waiting time
         currentProcess = selected;
         waitingTime.put(selected, 0);
-
-        current_time++;
 
         return selected;
     }
