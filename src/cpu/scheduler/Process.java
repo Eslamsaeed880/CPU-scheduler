@@ -23,6 +23,7 @@ public class Process {
         this.arrivalTime = other.arrivalTime;
         this.burstTime = other.burstTime;
         this.priority = other.priority;
+        this.quantum = other.quantum;
     }
 
     public int getArrivalTime() {

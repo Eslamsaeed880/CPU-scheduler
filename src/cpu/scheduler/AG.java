@@ -5,167 +5,167 @@ import java.util.*;
 public class AG implements IScheduler {
 
     private Map<String, Process> processes;
-
     public Map<String, ArrayList<Integer>> quantumHistory = new HashMap<>();
-
-    private String currentProcess = null;
-    private int timeInCurrentQuantum = 0;
-    private int currentQuantumValue = 0;
 
     private LinkedList<String> readyQueue = new LinkedList<>();
     private Set<String> inQueue = new HashSet<>();
+    private String currentProcess = null;
+    private int currentQuantum = 0;
+    private int timeInQuantum = 0;
 
     @Override
     public void setProcessSet(Map<String, Process> processes) {
         this.processes = processes;
-
         quantumHistory.clear();
         readyQueue.clear();
         inQueue.clear();
-
         currentProcess = null;
-        timeInCurrentQuantum = 0;
-        currentQuantumValue = 0;
+        currentQuantum = 0;
+        timeInQuantum = 0;
     }
 
     @Override
-    public void onNewProcess(String processName, int time) {
-        if (!inQueue.contains(processName)) {
-            readyQueue.add(processName);
-            inQueue.add(processName);
-
-            quantumHistory.putIfAbsent(processName, new ArrayList<>());
-            quantumHistory.get(processName).add(processes.get(processName).quantum);
+    public void onNewProcess(String name, int time) {
+        if (!inQueue.contains(name) && processes.containsKey(name)) {
+            readyQueue.add(name);
+            inQueue.add(name);
+            quantumHistory.putIfAbsent(name, new ArrayList<>());
+            quantumHistory.get(name).add(processes.get(name).quantum);
         }
     }
 
     @Override
-    public boolean doContextSwitch() {
-        return false;
-    }
+    public boolean doContextSwitch() { return false; }
 
     @Override
     public String scheduleNext(int time) {
-
-        // handle termination of current process
+        // Handle finished process
         if (currentProcess != null && !processes.containsKey(currentProcess)) {
-
-            ArrayList<Integer> history = quantumHistory.get(currentProcess);
-            if (history != null && history.get(history.size() - 1) != 0) {
-                history.add(0);
-            }
-
+            quantumHistory.get(currentProcess).add(0);
             inQueue.remove(currentProcess);
             currentProcess = null;
-            timeInCurrentQuantum = 0;
-            currentQuantumValue = 0;
+            timeInQuantum = 0;
+            currentQuantum = 0;
         }
 
-        // remove finished process
+        // Clean finished processes from queue
         readyQueue.removeIf(p -> !processes.containsKey(p));
 
-        // select new process FCFS
-        if (currentProcess == null) {
-
-            if (readyQueue.isEmpty()) {
-                return "";
-            }
-
-            currentProcess = readyQueue.poll();
-            currentQuantumValue = processes.get(currentProcess).quantum;
-            timeInCurrentQuantum = 0;
-
-            if (currentQuantumValue > processes.get(currentProcess).burstTime) {
-                currentQuantumValue = processes.get(currentProcess).burstTime;
-            }
-
-            return currentProcess;
-        }
-
-        // determine boundaries
-        int phase1End = (int) Math.ceil(currentQuantumValue * 0.25);
-        int phase2End = phase1End + (int) Math.ceil(currentQuantumValue * 0.25);
-
-        // phase 2 priority check
-        if (timeInCurrentQuantum == phase1End &&
-                timeInCurrentQuantum < currentQuantumValue) {
-
-            String higherPriority = findHigherPriorityProcess();
-            if (higherPriority != null) {
-                handlePreemption(2);
-                return scheduleNext(time);
-            }
-        }
-
-        // phase 3 SJF
-        if (timeInCurrentQuantum == phase2End &&
-                timeInCurrentQuantum < currentQuantumValue) {
-
-            String shorterJob = findShorterProcess();
-            if (shorterJob != null) {
-                handlePreemption(3);
-                return scheduleNext(time);
-            }
-        }
-
-        // quantum exhausted
-        if (timeInCurrentQuantum >= currentQuantumValue) {
-
-            if (processes.containsKey(currentProcess)) {
-                readyQueue.add(currentProcess);
-            }
-
+        // Check if current process used its quantum
+        if (currentProcess != null && timeInQuantum >= currentQuantum) {
+            // Quantum expired without completion, move to end of queue
+            Process p = processes.get(currentProcess);
+            int newQ = p.quantum + 2;
+            p.quantum = newQ;
+            quantumHistory.get(currentProcess).add(newQ);
+            readyQueue.add(currentProcess);
             currentProcess = null;
-            return scheduleNext(time);
+            timeInQuantum = 0;
+            currentQuantum = 0;
         }
 
+        // Pick new process if none running
+        if (currentProcess == null) {
+            if (readyQueue.isEmpty()) return "";
+            currentProcess = readyQueue.poll();
+            Process p = processes.get(currentProcess);
+            currentQuantum = p.quantum;
+            timeInQuantum = 0;
+        }
 
-        timeInCurrentQuantum++; // execute one time unit
+        int phase1 = (int) Math.ceil(currentQuantum * 0.25);
+        int phase2 = phase1 + (int) Math.ceil(currentQuantum * 0.25);
+
+        // Phase 1: At 25% of quantum, check for higher priority process
+        if (timeInQuantum == phase1) {
+            String hp = findHigherPriority();
+            if (hp != null) {
+                preemptByPriority(hp);
+                timeInQuantum++;
+                return currentProcess;
+            }
+        }
+
+        // Phase 2: At 50% of quantum, check for shorter burst process
+        if (timeInQuantum == phase2) {
+            String sj = findShorterBurst();
+            if (sj != null) {
+                preemptByBurst(sj);
+                timeInQuantum++;
+                return currentProcess;
+            }
+        }
+
+        // Check if this is the last process and it will complete this tick
+        if (processes.get(currentProcess).burstTime == 1 && readyQueue.isEmpty()) {
+            quantumHistory.get(currentProcess).add(0);
+        }
+
+        timeInQuantum++;
         return currentProcess;
     }
 
-
-    // needed functions
-
-    private String findHigherPriorityProcess() {
-        int currentPriority = processes.get(currentProcess).getPriority();
-        for (String p : readyQueue) {
-            if (processes.get(p).getPriority() < currentPriority) {
-                return p;
-            }
-        }
-        return null;
-    }
-
-    private String findShorterProcess() {
-        int currentBurst = processes.get(currentProcess).burstTime;
-        for (String p : readyQueue) {
-            if (processes.get(p).burstTime < currentBurst) {
-                return p;
-            }
-        }
-        return null;
-    }
-
-    private void handlePreemption(int phaseNumber) {
-
-        int remainingQuantum = currentQuantumValue - timeInCurrentQuantum;
-        int oldQuantum = processes.get(currentProcess).quantum;
-        int newQuantum;
-
-        if (phaseNumber == 2) {
-            newQuantum = oldQuantum + (int) Math.ceil(remainingQuantum / 2.0);
-        } else {
-            newQuantum = oldQuantum + remainingQuantum;
-        }
-
-        processes.get(currentProcess).quantum = newQuantum;
-        quantumHistory.get(currentProcess).add(newQuantum);
-
+    private void preemptByPriority(String newProcess) {
+        int remaining = currentQuantum - timeInQuantum;
+        Process p = processes.get(currentProcess);
+        int newQ = p.quantum + (int) Math.ceil(remaining / 2.0);
+        p.quantum = newQ;
+        quantumHistory.get(currentProcess).add(newQ);
         readyQueue.add(currentProcess);
 
-        currentProcess = null;
-        timeInCurrentQuantum = 0;
-        currentQuantumValue = 0;
+        switchTo(newProcess);
+    }
+
+    private void preemptByBurst(String newProcess) {
+        int remaining = currentQuantum - timeInQuantum;
+        Process p = processes.get(currentProcess);
+        int newQ = p.quantum + remaining;
+        p.quantum = newQ;
+        quantumHistory.get(currentProcess).add(newQ);
+        readyQueue.add(currentProcess);
+
+        switchTo(newProcess);
+    }
+
+    private void switchTo(String newProcess) {
+        currentProcess = newProcess;
+        readyQueue.remove(newProcess);
+        Process newP = processes.get(currentProcess);
+        currentQuantum = newP.quantum;
+        timeInQuantum = 0;
+    }
+
+    private String findHigherPriority() {
+        if (currentProcess == null || !processes.containsKey(currentProcess)) return null;
+        int currPri = processes.get(currentProcess).getPriority();
+
+        String best = null;
+        int bestPri = currPri;
+        for (String name : readyQueue) {
+            if (!processes.containsKey(name)) continue;
+            int pri = processes.get(name).getPriority();
+            if (pri < bestPri) {
+                bestPri = pri;
+                best = name;
+            }
+        }
+        return best;
+    }
+
+    private String findShorterBurst() {
+        if (currentProcess == null || !processes.containsKey(currentProcess)) return null;
+        int currBurst = processes.get(currentProcess).burstTime;
+
+        String best = null;
+        int bestBurst = currBurst;
+        for (String name : readyQueue) {
+            if (!processes.containsKey(name)) continue;
+            int burst = processes.get(name).burstTime;
+            if (burst < bestBurst) {
+                bestBurst = burst;
+                best = name;
+            }
+        }
+        return best;
     }
 }
