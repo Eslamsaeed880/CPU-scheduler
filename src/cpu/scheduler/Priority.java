@@ -30,31 +30,38 @@ public class Priority implements IScheduler {
 
     @Override
     public boolean doContextSwitch() {
-        return false;
+        return true;
     }
 
     @Override
-    public String /* Process name */ scheduleNext(int time) { // Runs for 1s.
+    public String scheduleNext(int time) {
         String selected = null;
         int bestPriority = Integer.MAX_VALUE;
 
-        if (lastSelected != null) {
-            lastExecutedTime.put(lastSelected, time);
-        }
-
         for (Map.Entry<String, Process> entry : processes.entrySet()) {
+            String name = entry.getKey();
             Process p = entry.getValue();
-            int priority = p.getPriority() - ((time - lastExecutedTime.get(entry.getKey())) / this.agingInterval);
-            if (priority < bestPriority) {
-                bestPriority = priority;
-                selected = entry.getKey();
+
+            // Calculate priority based on arrival time to represent total time in system
+            // OR calculate wait time as (current time - last time it finished a burst)
+            int waitTime = time - lastExecutedTime.get(name);
+            int agedPriority = p.getPriority() - (waitTime / this.agingInterval);
+
+            if (agedPriority < bestPriority) {
+                bestPriority = agedPriority;
+                selected = name;
             }
-            // else if (priority == bestPriority &&  p.getArrivalTime() < processes.get(selected).getArrivalTime()) {
-            //                selected = entry.getKey();
-            //            }
-            else if (priority == bestPriority && p.burstTime < this.processes.get(selected).burstTime) {
-                selected = entry.getKey();
+            // Tie-breaker 1: If priorities are equal, prefer the one ALREADY running (prevents thrashing)
+            else if (agedPriority == bestPriority && name.equals(lastSelected)) {
+                selected = name;
             }
+            // Tie-breaker 2: If neither is running, prefer earlier arrival
+            else if (agedPriority == bestPriority) {
+                if (p.getArrivalTime() < processes.get(selected).getArrivalTime()) {
+                    selected = name;
+                }
+            }
+
         }
 
         lastSelected = selected;
