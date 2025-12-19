@@ -26,12 +26,10 @@ public class AG implements IScheduler {
 
     @Override
     public void onNewProcess(String name, int time) {
-        if (!inQueue.contains(name) && processes.containsKey(name)) {
-            readyQueue.add(name);
-            inQueue.add(name);
-            quantumHistory.putIfAbsent(name, new ArrayList<>());
-            quantumHistory.get(name).add(processes.get(name).quantum);
-        }
+        readyQueue.add(name);
+        inQueue.add(name);
+        quantumHistory.putIfAbsent(name, new ArrayList<>());
+        quantumHistory.get(name).add(processes.get(name).quantum);
     }
 
     @Override

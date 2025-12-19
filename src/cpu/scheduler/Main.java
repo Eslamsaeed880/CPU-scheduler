@@ -98,12 +98,16 @@ public class Main {
         int numberOfNormalTests = testFiles.length - numberOfAGTests;
         for (Map.Entry<String, Integer> fail : schedulersFails.entrySet()) {
             int n  = fail.getKey() != "AG" ? numberOfNormalTests : numberOfAGTests;
-            if (fail.getValue() == testFiles.length) {
-                System.out.println(fail.getKey() + " failed every test cases out of " + numberOfNormalTests);
+            if (n == 0) {
+                System.out.println(fail.getKey() + " didn't have any tests to run");
+                continue;
+            }
+            if (fail.getValue() == n) {
+                System.out.println(fail.getKey() + " failed every test cases out of " + n);
             } else if (fail.getValue() > 0) {
-                System.out.println(fail.getKey() + " failed " + fail.getValue() +  " test cases out of " + numberOfNormalTests);
+                System.out.println(fail.getKey() + " failed " + fail.getValue() +  " test cases out of " + n);
             } else {
-                System.out.println(fail.getKey() + " passed every test case out of " + numberOfNormalTests);
+                System.out.println(fail.getKey() + " passed every test case out of " + n);
             }
         }
     }
@@ -129,21 +133,25 @@ public class Main {
             Process process = processes.get(processName);
             int turnaroundTime = process.completionTime - process.getArrivalTime();
             int waitingTime = turnaroundTime - process.burstTime;
-            if (waitingTime == expectedWaitingTime && expectedTurnaroundTime == expectedTurnaroundTime) {
-                System.out.println(processName + ": OK: W=" + waitingTime + "\tT=" + turnaroundTime);
-            } else {
-                System.out.println(processName + ": BAD:     \tW=" + waitingTime + "\tT=" + turnaroundTime);
-                System.out.println("    EXPECTED:\tW=" + expectedWaitingTime + "\tT=" + expectedTurnaroundTime);
-                correctAlgorithm = false;
-            }
             if (isAGTest) {
                 List<Integer> expectedQuantumHistory = toIntegerList(expectedResult.getJSONArray("quantumHistory"));
                 AG ag = (AG)scheduler;
-                if (ag.quantumHistory.get(processName).equals(expectedQuantumHistory)) {
-                    System.out.println(processName + ": OK: Quantum History: " + ag.quantumHistory.get(processName));
+                if (waitingTime == expectedWaitingTime
+                    && expectedTurnaroundTime == expectedTurnaroundTime
+                    && ag.quantumHistory.get(processName).equals(expectedQuantumHistory)) {
+                    System.out.println(processName + ": OK: W=" + waitingTime + "\tT=" + turnaroundTime + "\tQ=" + ag.quantumHistory.get(processName));
                 } else {
-                    System.out.println(processName + ": BAD: Quantum History: " + ag.quantumHistory.get(processName));
-                    System.out.println("    EXPECTED: Qunatum History: " + expectedQuantumHistory);
+                    System.out.println(processName + ": BAD:     \tW=" + waitingTime + "\tT=" + turnaroundTime + "\tQ=" + ag.quantumHistory.get(processName));
+                    System.out.println("    EXPECTED:\tW=" + expectedWaitingTime + "\tT=" + expectedTurnaroundTime + "\tQ=" + expectedQuantumHistory);
+                    correctAlgorithm = false;
+                }
+            } else {
+                if (waitingTime == expectedWaitingTime && expectedTurnaroundTime == expectedTurnaroundTime) {
+                    System.out.println(processName + ": OK: W=" + waitingTime + "\tT=" + turnaroundTime);
+                } else {
+                    System.out.println(processName + ": BAD:     \tW=" + waitingTime + "\tT=" + turnaroundTime);
+                    System.out.println("    EXPECTED:\tW=" + expectedWaitingTime + "\tT=" + expectedTurnaroundTime);
+                    correctAlgorithm = false;
                 }
             }
         }

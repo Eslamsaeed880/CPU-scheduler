@@ -8,6 +8,7 @@ public class Process {
     public int burstTime;
     private int priority;
 
+    // For AG only
     public int quantum;
 
     // Implementers of IScheduler shouldn't access this variable
