@@ -5,22 +5,24 @@ import java.util.*;
 public class Priority implements IScheduler {
 
     private Map<String, Process> processes;
-    private int agingInterval = 1; // Default to avoid division by zero
+    private int agingInterval = 1;
 
-    // Tracks when a process arrived to help calculate "wait time" roughly
-    private Map<String, Integer> lastExecutedTime = new HashMap<>();
+    private Map<String, Integer> initialBurstTimes = new HashMap<>();
+
     private String lastSelected = null;
 
     @Override
     public void setProcessSet(Map<String, Process> processes) {
         this.processes = processes;
-        lastExecutedTime.clear();
+        initialBurstTimes.clear();
     }
 
     @Override
     public void onNewProcess(String process, int time) {
-        // We initialize lastExecutedTime with arrival time
-        lastExecutedTime.put(process, time);
+        // Capture the initial burst time when the process first enters the queue
+        if (processes.containsKey(process)) {
+            initialBurstTimes.put(process, processes.get(process).burstTime);
+        }
     }
 
     @Override
@@ -44,26 +46,29 @@ public class Priority implements IScheduler {
             String name = entry.getKey();
             Process p = entry.getValue();
 
+            // 1. Calculate how much of the burst has been executed
+            int executedTime = 0;
+            if (initialBurstTimes.containsKey(name)) {
+                executedTime = initialBurstTimes.get(name) - p.burstTime;
+            }
 
-            int waitTime = time - p.getArrivalTime();
+            // 2. Calculate True Wait Time (Time since arrival - Time spent executing)
+            int waitTime = time - p.getArrivalTime() - executedTime;
 
-            // Calculate Aged Priority (Lower value is better)
+            // 3. Calculate Aged Priority
             int agedPriority = Math.max(1, p.getPriority() - (waitTime / this.agingInterval));
 
-            // 1. Found a strictly better priority
+            // 4. Selection Logic
             if (agedPriority < bestPriority) {
                 bestPriority = agedPriority;
                 selected = name;
             }
-            // 2. Priority is Equal: Check Tie-Breakers
             else if (agedPriority == bestPriority) {
-                // Tie-Breaker A: Arrival Time (Earlier Arrival wins)
-                // We check this BEFORE checking if it's currently running,
-                // to allow the "Preemption" scenario you requested.
+                // Tie-Breaker A: Arrival Time
                 if (selected != null && p.getArrivalTime() < processes.get(selected).getArrivalTime()) {
                     selected = name;
                 }
-                // Tie-Breaker B: If arrival times are also equal (rare), prefer the one running
+                // Tie-Breaker B: If arrival times are equal, prefer the one running
                 else if (selected != null && p.getArrivalTime() == processes.get(selected).getArrivalTime()) {
                     if (name.equals(lastSelected)) {
                         selected = name;
