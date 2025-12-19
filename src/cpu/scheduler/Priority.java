@@ -7,6 +7,7 @@ public class Priority implements IScheduler {
     private Map<String, Process> processes;
     private int agingInterval = 1;
 
+    // Store initial burst times to calculate how long a process has executed
     private Map<String, Integer> initialBurstTimes = new HashMap<>();
 
     private String lastSelected = null;
@@ -19,8 +20,8 @@ public class Priority implements IScheduler {
 
     @Override
     public void onNewProcess(String process, int time) {
-        // Capture the initial burst time when the process first enters the queue
         if (processes.containsKey(process)) {
+            // Capture the full burst time when the process arrives
             initialBurstTimes.put(process, processes.get(process).burstTime);
         }
     }
@@ -46,33 +47,42 @@ public class Priority implements IScheduler {
             String name = entry.getKey();
             Process p = entry.getValue();
 
-            // 1. Calculate how much of the burst has been executed
+            // 1. Calculate Execution Time & Wait Time
             int executedTime = 0;
             if (initialBurstTimes.containsKey(name)) {
                 executedTime = initialBurstTimes.get(name) - p.burstTime;
             }
-
-            // 2. Calculate True Wait Time (Time since arrival - Time spent executing)
             int waitTime = time - p.getArrivalTime() - executedTime;
 
-            // 3. Calculate Aged Priority
+            // 2. Calculate Aged Priority
             int agedPriority = Math.max(1, p.getPriority() - (waitTime / this.agingInterval));
 
-            // 4. Selection Logic
+            // 3. Selection Logic
             if (agedPriority < bestPriority) {
                 bestPriority = agedPriority;
                 selected = name;
             }
+            // Tie-Breaking Logic
             else if (agedPriority == bestPriority) {
                 // Tie-Breaker A: Arrival Time
                 if (selected != null && p.getArrivalTime() < processes.get(selected).getArrivalTime()) {
                     selected = name;
                 }
-                // Tie-Breaker B: If arrival times are equal, prefer the one running
                 else if (selected != null && p.getArrivalTime() == processes.get(selected).getArrivalTime()) {
-                    if (name.equals(lastSelected)) {
+
+                    // Tie-Breaker B: Burst Time (SJF)
+                    if (p.burstTime < processes.get(selected).burstTime) {
                         selected = name;
                     }
+                    // Tie-Breaker C: Prefer the Running Process
+                    else if (name.equals(lastSelected)) {
+                        selected = name;
+                    }
+                    // Tie-Breaker D: Original Base Priority
+                    else if (p.getPriority() < processes.get(selected).getPriority()) {
+                        selected = name;
+                    }
+
                 }
             }
         }
