@@ -68,11 +68,8 @@ public class Priority implements IScheduler {
                 if (selected != null && p.getArrivalTime() < processes.get(selected).getArrivalTime()) {
                     selected = name;
                 }
-                else if (selected != null && p.getArrivalTime() == processes.get(selected).getArrivalTime()) {
-                    // Tie-Breaker B: Prefer the Running Process
-                        selected = name;
-                    }
-                }
+
+            }
         }
 
         lastSelected = selected;
