@@ -64,7 +64,7 @@ public class Priority implements IScheduler {
             }
             // Tie-Breaking Logic
             else if (agedPriority == bestPriority) {
-                // Tie-Breaker A: Arrival Time
+                // Tie-Breaker : Arrival Time
                 if (selected != null && p.getArrivalTime() < processes.get(selected).getArrivalTime()) {
                     selected = name;
                 }
