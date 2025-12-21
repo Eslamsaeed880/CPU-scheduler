@@ -5,25 +5,24 @@ import java.util.*;
 public class Priority implements IScheduler {
 
     private Map<String, Process> processes;
-    private int agingInterval = 1;
+    private int agingInterval;
+    private int contextSwitchTime;
 
     // Store initial burst times to calculate how long a process has executed
     private Map<String, Integer> initialBurstTimes = new HashMap<>();
 
     private String lastSelected = null;
+    private boolean doRunProcess = true;
 
     @Override
     public void setProcessSet(Map<String, Process> processes) {
         this.processes = processes;
-        initialBurstTimes.clear();
-    }
-
-    @Override
-    public void onNewProcess(String process, int time) {
-        if (processes.containsKey(process)) {
-            // Capture the full burst time when the process arrives
-            initialBurstTimes.put(process, processes.get(process).burstTime);
+        this.initialBurstTimes.clear();
+        for (Map.Entry<String, Process> entry : processes.entrySet()) {
+            this.initialBurstTimes.put(entry.getKey(), entry.getValue().burstTime);
         }
+        this.lastSelected = null;
+        this.doRunProcess = true;
     }
 
     @Override
@@ -31,6 +30,14 @@ public class Priority implements IScheduler {
         if (param.equals("agingInterval")) {
             this.agingInterval = (Integer)value;
         }
+        else if (param.equals("contextSwitchTime")) {
+            this.contextSwitchTime = (Integer)value;
+        }
+    }
+
+    @Override
+    public boolean runProcess() {
+        return doRunProcess;
     }
 
     @Override
@@ -39,7 +46,28 @@ public class Priority implements IScheduler {
     }
 
     @Override
+    public boolean processSetIsInQueueSet() {
+        return false;
+    }
+
+    @Override
     public String scheduleNext(int time) {
+        String selected = scheduleNextHelper(time);
+        if (!doRunProcess) {
+            doRunProcess = true;
+            lastSelected = selected;
+            return selected;
+        }
+        String potentiallyBetter = scheduleNextHelper(time + this.contextSwitchTime);
+        if (selected == potentiallyBetter) {
+            lastSelected = selected;
+            return selected;
+        }
+        doRunProcess = false;
+        return selected;
+    }
+
+    public String scheduleNextHelper(int time) {
         String selected = null;
         int bestPriority = Integer.MAX_VALUE;
 
@@ -47,32 +75,31 @@ public class Priority implements IScheduler {
             String name = entry.getKey();
             Process p = entry.getValue();
 
-            // 1. Calculate Execution Time & Wait Time
-            int executedTime = 0;
-            if (initialBurstTimes.containsKey(name)) {
-                executedTime = initialBurstTimes.get(name) - p.burstTime;
+            if (time < p.getArrivalTime() || p.burstTime == 0) {
+                continue;
             }
-            int waitTime = time - p.getArrivalTime() - executedTime;
 
-            // 2. Calculate Aged Priority
-            int agedPriority = Math.max(1, p.getPriority() - (waitTime / this.agingInterval));
+            // 1. Calculate waiting time
+            int executedTime = initialBurstTimes.get(name) - p.burstTime;
+            int waitingTime = time - p.getArrivalTime() - executedTime;
 
-            // 3. Selection Logic
+            // 2. Calculate aged priority
+            int agedPriority = Math.max(1, p.getPriority() - Math.floorDiv(waitingTime, this.agingInterval));
+
+            // 3. Selection logic
             if (agedPriority < bestPriority) {
                 bestPriority = agedPriority;
                 selected = name;
             }
-            // Tie-Breaking Logic
+            // Tie-Breaking logic
             else if (agedPriority == bestPriority) {
-                // Tie-Breaker : Arrival Time
+                // Tie-Breaker: Arrival time
                 if (selected != null && p.getArrivalTime() < processes.get(selected).getArrivalTime()) {
                     selected = name;
                 }
-
             }
         }
 
-        lastSelected = selected;
         return selected;
     }
 }

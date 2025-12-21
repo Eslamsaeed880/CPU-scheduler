@@ -20,77 +20,51 @@ public class SchedulerRunner {
     }
 
     List<String> run(IScheduler scheduler) {
-        boolean isPriority = scheduler instanceof Priority;
-
+        Map<String, Process> allProcesses = new HashMap<>(this.processes.size());
+        for (Map.Entry<String, Process> entry : this.processes.entrySet()) {
+            allProcesses.put(entry.getKey(), new Process(entry.getValue()));
+        }
         Map<String, Process> inQueueProcesses = new HashMap<>(this.processes.size());
-        Set<String> processed = new HashSet<>(this.processes.size());
-        scheduler.setProcessSet(inQueueProcesses);
-
+        if (scheduler.processSetIsInQueueSet()) {
+            scheduler.setProcessSet(inQueueProcesses);
+        } else {
+            scheduler.setProcessSet(allProcesses);
+        }
         int leftoutTime = this.runtime;
         int time = 0;
         List<String> executionOrder = new ArrayList<>();
-
+        scheduler.setParameter("contextSwitchTime", this.contextSwitchTime);
         while (leftoutTime > 0) {
-            // 1. Check for new arrivals
             for (Map.Entry<String, Process> process : this.processes.entrySet()) {
                 if (!inQueueProcesses.containsKey(process.getKey())
-                        && time >= process.getValue().getArrivalTime()
-                        && !processed.contains(process.getKey())) {
-                    inQueueProcesses.put(process.getKey(), new Process(process.getValue()));
+                    && time >= process.getValue().getArrivalTime()
+                    && allProcesses.get(process.getKey()).burstTime > 0 ) {
+                    inQueueProcesses.put(process.getKey(), allProcesses.get(process.getKey()));
                     scheduler.onNewProcess(process.getKey(), time);
                 }
             }
-
-            // 2. Schedule next process
             String nextProcess = scheduler.scheduleNext(time);
-
             if (inQueueProcesses.containsKey(nextProcess)) {
-
-                // --- LOGGING / CONTEXT SWITCH LOGIC ---
-                if (executionOrder.isEmpty()) {
-                    // Always add the very first process
-                    executionOrder.add(nextProcess);
-                } else {
-                    String lastProcess = executionOrder.get(executionOrder.size() - 1);
-
-                    // Only handle switching if the process is DIFFERENT
-                    if (!lastProcess.equals(nextProcess)) {
-
+                if (executionOrder.size() > 0) {
+                    String lastProcess = executionOrder.get(executionOrder.size()-1);
+                    if (lastProcess != nextProcess) {
                         if (scheduler.doContextSwitch()) {
                             time += this.contextSwitchTime;
-
-                            // Special Priority Logic: Check if aging occurred during switch time
-                            if (isPriority) {
-                                String potentiallyBetter = scheduler.scheduleNext(time);
-
-                                if (!potentiallyBetter.equals(nextProcess)) {
-                                    // Add the process we skipped to the log
-                                    executionOrder.add(nextProcess);
-
-                                    // Add another context switch penalty
-                                    time += this.contextSwitchTime;
-
-                                    // Switch target to the new winner
-                                    nextProcess = potentiallyBetter;
-                                }
-                            }
                         }
-
-                        // Add the final selected process to the Gantt chart
                         executionOrder.add(nextProcess);
                     }
+                } else {
+                    executionOrder.add(nextProcess);
                 }
-                // --------------------------------------
-
-                // 3. Execution (Decrement Burst)
-                if ((inQueueProcesses.get(nextProcess).burstTime -= 1) == 0) {
-                    this.processes.get(nextProcess).completionTime = time + 1;
-                    inQueueProcesses.remove(nextProcess);
-                    processed.add(nextProcess);
+                if (scheduler.runProcess()) {
+                    if ((inQueueProcesses.get(nextProcess).burstTime -= 1) == 0) {
+                        this.processes.get(nextProcess).completionTime = time + 1;
+                        inQueueProcesses.remove(nextProcess);
+                    }
+                    leftoutTime -= 1;
+                    time += 1;
                 }
-                leftoutTime -= 1;
             }
-            time += 1;
         }
         return executionOrder;
     }
