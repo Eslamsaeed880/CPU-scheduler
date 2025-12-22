@@ -19,15 +19,18 @@ public class Main {
         schedulersFails.put("Priority", 0);
         schedulersFails.put("AG", 0);
         int numberOfAGTests = 0;
+        int numberOfTests = 0;
+        LinkedList<String> errors = new LinkedList();
         for (String fileName : testFiles) {
             String contents;
             Path path = Path.of(fileName);
             try {
                 contents = Files.readString(path);
             } catch (IOException exc) {
-                System.out.println(exc);
+                errors.push("error: " + path + ": " + exc.getMessage());
                 continue;
             }
+            numberOfTests++;
             fileName = path.getFileName().toString();
             boolean isAGTest =  fileName.startsWith("AG");
             if (isAGTest) numberOfAGTests++;
@@ -95,7 +98,7 @@ public class Main {
             }
         }
         System.out.println();
-        int numberOfNormalTests = testFiles.length - numberOfAGTests;
+        int numberOfNormalTests = numberOfTests - numberOfAGTests;
         for (Map.Entry<String, Integer> fail : schedulersFails.entrySet()) {
             int n  = fail.getKey() != "AG" ? numberOfNormalTests : numberOfAGTests;
             if (n == 0) {
@@ -110,6 +113,8 @@ public class Main {
                 System.out.println(fail.getKey() + " passed every test case out of " + n);
             }
         }
+        if (errors.size() > 0) System.out.println();
+        for (String err : errors) System.out.println(err);
     }
 
     static boolean testAlgorithm(Map<String, Process> processes, SchedulerRunner runner, IScheduler scheduler, JSONObject testOutput) {
@@ -125,6 +130,8 @@ public class Main {
         }
         JSONArray expectedProcessResults = testOutput.getJSONArray("processResults");
         boolean isAGTest = scheduler instanceof AG;
+        int sumTurnaroundTime = 0;
+        int sumWaitingTime = 0;
         for (int i = 0; i < expectedProcessResults.length(); i++) {
             JSONObject expectedResult = expectedProcessResults.getJSONObject(i);
             String processName = expectedResult.getString("name");
@@ -133,6 +140,8 @@ public class Main {
             Process process = processes.get(processName);
             int turnaroundTime = process.completionTime - process.getArrivalTime();
             int waitingTime = turnaroundTime - process.burstTime;
+            sumTurnaroundTime += turnaroundTime;
+            sumWaitingTime += waitingTime;
             if (isAGTest) {
                 List<Integer> expectedQuantumHistory = toIntegerList(expectedResult.getJSONArray("quantumHistory"));
                 AG ag = (AG)scheduler;
@@ -155,6 +164,10 @@ public class Main {
                 }
             }
         }
+        float averageWaitingTime = ((float)sumWaitingTime / processes.size());
+        float averageTurnaroundTime = ((float)sumTurnaroundTime / processes.size());
+        System.out.println("Average waiting time: " + String.format("%.2f", averageWaitingTime));
+        System.out.println("Average turnaround time: " + String.format("%.2f", averageTurnaroundTime));
         return correctAlgorithm;
     }
 
